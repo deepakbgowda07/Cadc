@@ -56,8 +56,6 @@ export default function App() {
     }, 3000);
   }
 
-  const showRightSidebar = activeTab === 'create' || activeTab === 'generate';
-
   return (
     <div style={styles.app}>
       <style>{`
@@ -158,14 +156,12 @@ export default function App() {
       {/* MAIN LAYOUT */}
       <div
         style={{
-          ...styles.layout,
-          ...(showRightSidebar ? styles.layoutWithSidebar : styles.layoutFullWidth)
+          ...styles.layout
         }}
       >
         <main
           style={{
-            ...styles.main,
-            ...(showRightSidebar ? styles.mainWithSidebar : styles.mainExpanded)
+            ...styles.main
           }}
         >
           {/* Toasts */}
@@ -224,122 +220,6 @@ export default function App() {
             </div>
           )}
         </main>
-
-        {/* SIDEBAR */}
-        {showRightSidebar && (
-          <aside style={styles.sidebar}>
-          {/* STATS (Create tab only) */}
-          {activeTab === 'create' && (
-            <>
-              <div style={styles.sectionLabel}>// Node Stats</div>
-              <div style={styles.statGrid}>
-                <div style={styles.statBox}>
-                  <div style={styles.statVal}>4</div>
-                  <div style={styles.statKey}>Reports</div>
-                </div>
-                <div style={styles.statBox}>
-                  <div style={{ ...styles.statVal, color: '#e03c3c' }}>2</div>
-                  <div style={styles.statKey}>Urgent</div>
-                </div>
-                <div style={styles.statBox}>
-                  <div style={{ ...styles.statVal, color: '#e8a020' }}>1.2</div>
-                  <div style={styles.statKey}>Avg Hops</div>
-                </div>
-                <div style={styles.statBox}>
-                  <div style={styles.statVal}>0</div>
-                  <div style={styles.statKey}>Trust Avg</div>
-                </div>
-              </div>
-            </>
-          )}
-   
-          {/* INSTRUCTIONS + IMPORT METHODS (hidden on Scan, RAG, and Feed tabs) */}
-          {activeTab !== 'scan' && activeTab !== 'rag' && activeTab !== 'feed' && (
-            <>
-              <div style={styles.sectionLabel}>// How to Use</div>
-              <div style={styles.sidebarPanel}>
-                <ul style={styles.stepList}>
-                  <li style={styles.stepItem}>
-                    <span style={styles.stepNum}>01</span>
-                    <span style={styles.stepText}>Fill in message details and submit</span>
-                  </li>
-                  <li style={styles.stepItem}>
-                    <span style={styles.stepNum}>02</span>
-                    <span style={styles.stepText}>Go to Generate QR tab — download the code</span>
-                  </li>
-                  <li style={styles.stepItem}>
-                    <span style={styles.stepNum}>03</span>
-                    <span style={styles.stepText}>Another device scans it — data merges locally</span>
-                  </li>
-                  <li style={styles.stepItem}>
-                    <span style={styles.stepNum}>04</span>
-                    <span style={styles.stepText}>Feed and analytics update on all devices</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div style={styles.sectionLabel}>// Import Methods</div>
-              <div style={styles.sidebarPanel}>
-                <div style={styles.importMethod}>
-                  <span style={styles.importMethodIcon}>CAM</span>
-                  <div style={styles.importMethodInfo}>
-                    <div style={styles.importMethodName}>Camera</div>
-                    <div style={styles.importMethodDesc}>Point at QR code</div>
-                  </div>
-                </div>
-                <div style={styles.importMethod}>
-                  <span style={styles.importMethodIcon}>B64</span>
-                  <div style={styles.importMethodInfo}>
-                    <div style={styles.importMethodName}>Manual Input</div>
-                    <div style={styles.importMethodDesc}>Paste Base64 data directly</div>
-                  </div>
-                </div>
-                <div style={styles.importMethod}>
-                  <span style={styles.importMethodIcon}>FILE</span>
-                  <div style={styles.importMethodInfo}>
-                    <div style={styles.importMethodName}>File Upload</div>
-                    <div style={styles.importMethodDesc}>Upload .json or .txt files</div>
-                  </div>
-                </div>
-                <div style={styles.importMethod}>
-                  <span style={styles.importMethodIcon}>DBG</span>
-                  <div style={styles.importMethodInfo}>
-                    <div style={styles.importMethodName}>Debug</div>
-                    <div style={styles.importMethodDesc}>Open F12 console for logs</div>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* SYSTEM STATUS (hidden on Scan, RAG, and Feed tabs) */}
-          {activeTab !== 'scan' && activeTab !== 'rag' && activeTab !== 'feed' && (
-            <>
-              <div style={styles.sectionLabel}>// System</div>
-              <div style={styles.sidebarPanel}>
-                <div style={styles.systemStatus}>
-                  <div style={styles.statusLine}>
-                    <span style={styles.statusLabel}>Internet</span>
-                    <span style={{color: '#e03c3c', fontFamily: "'Share Tech Mono', monospace", fontSize: '10px'}}>DISCONNECTED</span>
-                  </div>
-                  <div style={styles.statusLine}>
-                    <span style={styles.statusLabel}>Local Storage</span>
-                    <span style={{color: '#39d353', fontFamily: "'Share Tech Mono', monospace", fontSize: '10px'}}>ACTIVE</span>
-                  </div>
-                  <div style={styles.statusLine}>
-                    <span style={styles.statusLabel}>QR Engine</span>
-                    <span style={{color: '#39d353', fontFamily: "'Share Tech Mono', monospace", fontSize: '10px'}}>READY</span>
-                  </div>
-                  <div style={styles.statusLine}>
-                    <span style={styles.statusLabel}>AI Local</span>
-                    <span style={{color: '#e8a020', fontFamily: "'Share Tech Mono', monospace", fontSize: '10px'}}>LIMITED</span>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-          </aside>
-        )}
       </div>
 
       {/* FOOTER STATUS BAR */}
@@ -494,33 +374,17 @@ const styles = {
     display: 'grid',
     gap: 0,
     flex: 1,
-    overflow: 'hidden'
-  },
-  layoutWithSidebar: {
-    gridTemplateColumns: '1fr 320px'
-  },
-  layoutFullWidth: {
+    overflow: 'hidden',
     gridTemplateColumns: '1fr'
   },
   main: {
     padding: '28px',
     overflowY: 'auto',
-    backgroundColor: '#0a0b0c'
-  },
-  mainWithSidebar: {
-    borderRight: '1px solid #1e2124'
-  },
-  mainExpanded: {
+    backgroundColor: '#0a0b0c',
     borderRight: 'none',
     maxWidth: '1200px',
     width: '100%',
     margin: '0 auto'
-  },
-  sidebar: {
-    padding: '28px',
-    backgroundColor: '#111214',
-    overflowY: 'auto',
-    borderLeft: '1px solid #1e2124'
   },
   sectionLabel: {
     fontFamily: "'Share Tech Mono', monospace",
