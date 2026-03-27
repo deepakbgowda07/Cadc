@@ -56,6 +56,8 @@ export default function App() {
     }, 3000);
   }
 
+  const showRightSidebar = activeTab === 'create' || activeTab === 'generate';
+
   return (
     <div style={styles.app}>
       <style>{`
@@ -154,8 +156,18 @@ export default function App() {
       </nav>
 
       {/* MAIN LAYOUT */}
-      <div style={styles.layout}>
-        <main style={styles.main}>
+      <div
+        style={{
+          ...styles.layout,
+          ...(showRightSidebar ? styles.layoutWithSidebar : styles.layoutFullWidth)
+        }}
+      >
+        <main
+          style={{
+            ...styles.main,
+            ...(showRightSidebar ? styles.mainWithSidebar : styles.mainExpanded)
+          }}
+        >
           {/* Toasts */}
           {toasts.map((t) => (
             <div key={t.id} style={{...styles.toast, backgroundColor: t.type === 'success' ? '#1a6628' : t.type === 'error' ? '#5a1a1a' : '#5c3f0a', borderColor: t.type === 'success' ? '#39d353' : t.type === 'error' ? '#e03c3c' : '#e8a020', color: t.type === 'success' ? '#39d353' : t.type === 'error' ? '#e03c3c' : '#e8a020', marginBottom: '20px'}}>
@@ -199,7 +211,7 @@ export default function App() {
           {/* FEED TAB */}
           {activeTab === 'feed' && (
             <div>
-              <div style={styles.sectionLabel}>// Message Feed <span style={{color: '#39d353'}}>({stats.messages})</span></div>
+              <div style={styles.sectionLabel}>// Message Feed <span style={{color: '#39d353'}}>{stats.messages}</span></div>
               <MessageFeed key={feedRefresh} />
             </div>
           )}
@@ -214,107 +226,120 @@ export default function App() {
         </main>
 
         {/* SIDEBAR */}
-        <aside style={styles.sidebar}>
-          {/* STATS */}
-          <div style={styles.sectionLabel}>// Node Stats</div>
-          <div style={styles.statGrid}>
-            <div style={styles.statBox}>
-              <div style={styles.statVal}>4</div>
-              <div style={styles.statKey}>Reports</div>
-            </div>
-            <div style={styles.statBox}>
-              <div style={{ ...styles.statVal, color: '#e03c3c' }}>2</div>
-              <div style={styles.statKey}>Urgent</div>
-            </div>
-            <div style={styles.statBox}>
-              <div style={{ ...styles.statVal, color: '#e8a020' }}>1.2</div>
-              <div style={styles.statKey}>Avg Hops</div>
-            </div>
-            <div style={styles.statBox}>
-              <div style={styles.statVal}>0</div>
-              <div style={styles.statKey}>Trust Avg</div>
-            </div>
-          </div>
+        {showRightSidebar && (
+          <aside style={styles.sidebar}>
+          {/* STATS (Create tab only) */}
+          {activeTab === 'create' && (
+            <>
+              <div style={styles.sectionLabel}>// Node Stats</div>
+              <div style={styles.statGrid}>
+                <div style={styles.statBox}>
+                  <div style={styles.statVal}>4</div>
+                  <div style={styles.statKey}>Reports</div>
+                </div>
+                <div style={styles.statBox}>
+                  <div style={{ ...styles.statVal, color: '#e03c3c' }}>2</div>
+                  <div style={styles.statKey}>Urgent</div>
+                </div>
+                <div style={styles.statBox}>
+                  <div style={{ ...styles.statVal, color: '#e8a020' }}>1.2</div>
+                  <div style={styles.statKey}>Avg Hops</div>
+                </div>
+                <div style={styles.statBox}>
+                  <div style={styles.statVal}>0</div>
+                  <div style={styles.statKey}>Trust Avg</div>
+                </div>
+              </div>
+            </>
+          )}
+   
+          {/* INSTRUCTIONS + IMPORT METHODS (hidden on Scan, RAG, and Feed tabs) */}
+          {activeTab !== 'scan' && activeTab !== 'rag' && activeTab !== 'feed' && (
+            <>
+              <div style={styles.sectionLabel}>// How to Use</div>
+              <div style={styles.sidebarPanel}>
+                <ul style={styles.stepList}>
+                  <li style={styles.stepItem}>
+                    <span style={styles.stepNum}>01</span>
+                    <span style={styles.stepText}>Fill in message details and submit</span>
+                  </li>
+                  <li style={styles.stepItem}>
+                    <span style={styles.stepNum}>02</span>
+                    <span style={styles.stepText}>Go to Generate QR tab — download the code</span>
+                  </li>
+                  <li style={styles.stepItem}>
+                    <span style={styles.stepNum}>03</span>
+                    <span style={styles.stepText}>Another device scans it — data merges locally</span>
+                  </li>
+                  <li style={styles.stepItem}>
+                    <span style={styles.stepNum}>04</span>
+                    <span style={styles.stepText}>Feed and analytics update on all devices</span>
+                  </li>
+                </ul>
+              </div>
 
-          {/* INSTRUCTIONS */}
-          <div style={styles.sectionLabel}>// How to Use</div>
-          <div style={styles.sidebarPanel}>
-            <ul style={styles.stepList}>
-              <li style={styles.stepItem}>
-                <span style={styles.stepNum}>01</span>
-                <span style={styles.stepText}>Fill in message details and submit</span>
-              </li>
-              <li style={styles.stepItem}>
-                <span style={styles.stepNum}>02</span>
-                <span style={styles.stepText}>Go to Generate QR tab — download the code</span>
-              </li>
-              <li style={styles.stepItem}>
-                <span style={styles.stepNum}>03</span>
-                <span style={styles.stepText}>Another device scans it — data merges locally</span>
-              </li>
-              <li style={styles.stepItem}>
-                <span style={styles.stepNum}>04</span>
-                <span style={styles.stepText}>Feed and analytics update on all devices</span>
-              </li>
-            </ul>
-          </div>
+              <div style={styles.sectionLabel}>// Import Methods</div>
+              <div style={styles.sidebarPanel}>
+                <div style={styles.importMethod}>
+                  <span style={styles.importMethodIcon}>CAM</span>
+                  <div style={styles.importMethodInfo}>
+                    <div style={styles.importMethodName}>Camera</div>
+                    <div style={styles.importMethodDesc}>Point at QR code</div>
+                  </div>
+                </div>
+                <div style={styles.importMethod}>
+                  <span style={styles.importMethodIcon}>B64</span>
+                  <div style={styles.importMethodInfo}>
+                    <div style={styles.importMethodName}>Manual Input</div>
+                    <div style={styles.importMethodDesc}>Paste Base64 data directly</div>
+                  </div>
+                </div>
+                <div style={styles.importMethod}>
+                  <span style={styles.importMethodIcon}>FILE</span>
+                  <div style={styles.importMethodInfo}>
+                    <div style={styles.importMethodName}>File Upload</div>
+                    <div style={styles.importMethodDesc}>Upload .json or .txt files</div>
+                  </div>
+                </div>
+                <div style={styles.importMethod}>
+                  <span style={styles.importMethodIcon}>DBG</span>
+                  <div style={styles.importMethodInfo}>
+                    <div style={styles.importMethodName}>Debug</div>
+                    <div style={styles.importMethodDesc}>Open F12 console for logs</div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
-          {/* IMPORT METHODS */}
-          <div style={styles.sectionLabel}>// Import Methods</div>
-          <div style={styles.sidebarPanel}>
-            <div style={styles.importMethod}>
-              <span style={styles.importMethodIcon}>CAM</span>
-              <div style={styles.importMethodInfo}>
-                <div style={styles.importMethodName}>Camera</div>
-                <div style={styles.importMethodDesc}>Point at QR code</div>
+          {/* SYSTEM STATUS (hidden on Scan, RAG, and Feed tabs) */}
+          {activeTab !== 'scan' && activeTab !== 'rag' && activeTab !== 'feed' && (
+            <>
+              <div style={styles.sectionLabel}>// System</div>
+              <div style={styles.sidebarPanel}>
+                <div style={styles.systemStatus}>
+                  <div style={styles.statusLine}>
+                    <span style={styles.statusLabel}>Internet</span>
+                    <span style={{color: '#e03c3c', fontFamily: "'Share Tech Mono', monospace", fontSize: '10px'}}>DISCONNECTED</span>
+                  </div>
+                  <div style={styles.statusLine}>
+                    <span style={styles.statusLabel}>Local Storage</span>
+                    <span style={{color: '#39d353', fontFamily: "'Share Tech Mono', monospace", fontSize: '10px'}}>ACTIVE</span>
+                  </div>
+                  <div style={styles.statusLine}>
+                    <span style={styles.statusLabel}>QR Engine</span>
+                    <span style={{color: '#39d353', fontFamily: "'Share Tech Mono', monospace", fontSize: '10px'}}>READY</span>
+                  </div>
+                  <div style={styles.statusLine}>
+                    <span style={styles.statusLabel}>AI Local</span>
+                    <span style={{color: '#e8a020', fontFamily: "'Share Tech Mono', monospace", fontSize: '10px'}}>LIMITED</span>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div style={styles.importMethod}>
-              <span style={styles.importMethodIcon}>B64</span>
-              <div style={styles.importMethodInfo}>
-                <div style={styles.importMethodName}>Manual Input</div>
-                <div style={styles.importMethodDesc}>Paste Base64 data directly</div>
-              </div>
-            </div>
-            <div style={styles.importMethod}>
-              <span style={styles.importMethodIcon}>FILE</span>
-              <div style={styles.importMethodInfo}>
-                <div style={styles.importMethodName}>File Upload</div>
-                <div style={styles.importMethodDesc}>Upload .json or .txt files</div>
-              </div>
-            </div>
-            <div style={styles.importMethod}>
-              <span style={styles.importMethodIcon}>DBG</span>
-              <div style={styles.importMethodInfo}>
-                <div style={styles.importMethodName}>Debug</div>
-                <div style={styles.importMethodDesc}>Open F12 console for logs</div>
-              </div>
-            </div>
-          </div>
-
-          {/* SYSTEM STATUS */}
-          <div style={styles.sectionLabel}>// System</div>
-          <div style={styles.sidebarPanel}>
-            <div style={styles.systemStatus}>
-              <div style={styles.statusLine}>
-                <span style={styles.statusLabel}>Internet</span>
-                <span style={{color: '#e03c3c', fontFamily: "'Share Tech Mono', monospace", fontSize: '10px'}}>DISCONNECTED</span>
-              </div>
-              <div style={styles.statusLine}>
-                <span style={styles.statusLabel}>Local Storage</span>
-                <span style={{color: '#39d353', fontFamily: "'Share Tech Mono', monospace", fontSize: '10px'}}>ACTIVE</span>
-              </div>
-              <div style={styles.statusLine}>
-                <span style={styles.statusLabel}>QR Engine</span>
-                <span style={{color: '#39d353', fontFamily: "'Share Tech Mono', monospace", fontSize: '10px'}}>READY</span>
-              </div>
-              <div style={styles.statusLine}>
-                <span style={styles.statusLabel}>AI Local</span>
-                <span style={{color: '#e8a020', fontFamily: "'Share Tech Mono', monospace", fontSize: '10px'}}>LIMITED</span>
-              </div>
-            </div>
-          </div>
-        </aside>
+            </>
+          )}
+          </aside>
+        )}
       </div>
 
       {/* FOOTER STATUS BAR */}
@@ -397,7 +422,7 @@ const styles = {
   headerTitle: {
     fontFamily: "'Barlow Condensed', sans-serif",
     fontWeight: 700,
-    fontSize: '18px',
+    fontSize: '20px',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     color: '#d4d8dc',
@@ -408,7 +433,7 @@ const styles = {
   },
   headerSub: {
     fontFamily: "'Share Tech Mono', monospace",
-    fontSize: '10px',
+    fontSize: '11px',
     color: '#6b7280',
     letterSpacing: '0.15em',
     textTransform: 'uppercase',
@@ -445,9 +470,9 @@ const styles = {
     gap: 0
   },
   navTab: {
-    padding: '12px 20px',
+    padding: '14px 22px',
     fontFamily: "'Barlow Condensed', sans-serif",
-    fontSize: '13px',
+    fontSize: '14px',
     fontWeight: 600,
     letterSpacing: '0.1em',
     textTransform: 'uppercase',
@@ -467,32 +492,45 @@ const styles = {
   },
   layout: {
     display: 'grid',
-    gridTemplateColumns: '1fr 320px',
     gap: 0,
     flex: 1,
     overflow: 'hidden'
   },
+  layoutWithSidebar: {
+    gridTemplateColumns: '1fr 320px'
+  },
+  layoutFullWidth: {
+    gridTemplateColumns: '1fr'
+  },
   main: {
-    padding: '24px',
-    borderRight: '1px solid #1e2124',
+    padding: '28px',
     overflowY: 'auto',
     backgroundColor: '#0a0b0c'
   },
+  mainWithSidebar: {
+    borderRight: '1px solid #1e2124'
+  },
+  mainExpanded: {
+    borderRight: 'none',
+    maxWidth: '1200px',
+    width: '100%',
+    margin: '0 auto'
+  },
   sidebar: {
-    padding: '24px',
+    padding: '28px',
     backgroundColor: '#111214',
     overflowY: 'auto',
     borderLeft: '1px solid #1e2124'
   },
   sectionLabel: {
     fontFamily: "'Share Tech Mono', monospace",
-    fontSize: '10px',
+    fontSize: '13px',
     letterSpacing: '0.2em',
     textTransform: 'uppercase',
     color: '#6b7280',
-    borderLeft: '2px solid #39d353',
-    paddingLeft: '10px',
-    marginBottom: '20px',
+    borderLeft: '3px solid #39d353',
+    paddingLeft: '12px',
+    marginBottom: '24px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between'
@@ -500,42 +538,44 @@ const styles = {
   sidebarPanel: {
     backgroundColor: '#161819',
     border: '1px solid #1e2124',
-    padding: '16px',
-    marginBottom: '16px'
+    padding: '18px',
+    marginBottom: '24px'
   },
   toast: {
     backgroundColor: '#1a6628',
     border: '1px solid #39d353',
-    padding: '10px 14px',
+    padding: '12px 16px',
     fontFamily: "'Share Tech Mono', monospace",
-    fontSize: '11px',
+    fontSize: '12px',
     letterSpacing: '0.08em',
     color: '#39d353',
     display: 'flex',
     alignItems: 'center',
-    gap: '10px'
+    gap: '10px',
+    borderRadius: '4px'
   },
   statGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: '8px',
-    marginBottom: '20px'
+    gap: '12px',
+    marginBottom: '24px'
   },
   statBox: {
     backgroundColor: '#0d0e0f',
     border: '1px solid #1e2124',
-    padding: '10px 12px'
+    padding: '14px',
+    textAlign: 'center'
   },
   statVal: {
     fontFamily: "'Share Tech Mono', monospace",
-    fontSize: '22px',
+    fontSize: '26px',
     color: '#39d353',
     lineHeight: 1,
-    marginBottom: '4px'
+    marginBottom: '6px'
   },
   statKey: {
     fontFamily: "'Share Tech Mono', monospace",
-    fontSize: '9px',
+    fontSize: '11px',
     letterSpacing: '0.15em',
     textTransform: 'uppercase',
     color: '#3d4248'
@@ -543,64 +583,71 @@ const styles = {
   stepList: {
     listStyle: 'none',
     padding: 0,
-    margin: 0
+    margin: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
   },
   stepItem: {
     display: 'flex',
     gap: '12px',
-    marginBottom: '12px',
+    marginBottom: '16px',
     alignItems: 'flex-start'
   },
   stepNum: {
     fontFamily: "'Share Tech Mono', monospace",
-    fontSize: '10px',
+    fontSize: '11px',
     color: '#39d353',
     backgroundColor: '#1a6628',
-    width: '20px',
-    height: '20px',
+    width: '24px',
+    height: '24px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    marginTop: '1px'
+    marginTop: '2px',
+    borderRadius: '2px'
   },
   stepText: {
-    fontSize: '12px',
+    fontSize: '14px',
     color: '#6b7280',
-    lineHeight: '1.5',
+    lineHeight: '1.6',
     fontFamily: "'Barlow', sans-serif"
   },
   importMethod: {
     display: 'flex',
     gap: '12px',
     alignItems: 'flex-start',
-    paddingBottom: '10px',
+    paddingBottom: '14px',
+    marginBottom: '12px',
     borderBottom: '1px solid #1e2124'
   },
   importMethodIcon: {
     fontFamily: "'Share Tech Mono', monospace",
-    fontSize: '9px',
+    fontSize: '10px',
     letterSpacing: '0.1em',
     color: '#6b7280',
     textTransform: 'uppercase',
     border: '1px solid #1e2124',
-    padding: '3px 5px',
+    padding: '4px 6px',
     whiteSpace: 'nowrap',
-    marginTop: '1px'
+    marginTop: '2px',
+    minWidth: '34px',
+    textAlign: 'center'
   },
   importMethodInfo: {},
   importMethodName: {
     fontFamily: "'Barlow Condensed', sans-serif",
-    fontSize: '13px',
+    fontSize: '15px',
     fontWeight: 600,
     letterSpacing: '0.05em',
     color: '#d4d8dc',
-    marginBottom: '2px'
+    marginBottom: '4px'
   },
   importMethodDesc: {
-    fontSize: '11px',
+    fontSize: '13px',
     color: '#6b7280',
-    lineHeight: '1.4',
+    lineHeight: '1.5',
     fontFamily: "'Barlow', sans-serif"
   },
   systemStatus: {
@@ -611,11 +658,14 @@ const styles = {
   statusLine: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    paddingBottom: '8px',
+    marginBottom: '8px',
+    borderBottom: '1px solid rgba(30, 33, 36, 0.5)'
   },
   statusLabel: {
     fontFamily: "'Share Tech Mono', monospace",
-    fontSize: '10px',
+    fontSize: '11px',
     color: '#6b7280',
     letterSpacing: '0.1em',
     textTransform: 'uppercase'
@@ -638,7 +688,7 @@ const styles = {
     alignItems: 'center',
     gap: '6px',
     fontFamily: "'Share Tech Mono', monospace",
-    fontSize: '9px',
+    fontSize: '10px',
     letterSpacing: '0.12em',
     textTransform: 'uppercase',
     color: '#6b7280'
@@ -646,7 +696,7 @@ const styles = {
   footerTime: {
     marginLeft: 'auto',
     fontFamily: "'Share Tech Mono', monospace",
-    fontSize: '9px',
+    fontSize: '10px',
     color: '#3d4248',
     letterSpacing: '0.1em'
   },
@@ -660,10 +710,11 @@ const styles = {
   emptyCard: {
     backgroundColor: '#161819',
     border: '1px solid #1e2124',
-    padding: '40px 20px',
+    padding: '50px 25px',
     textAlign: 'center',
     color: '#6b7280',
     fontFamily: "'Share Tech Mono', monospace",
-    fontSize: '11px'
+    fontSize: '13px',
+    lineHeight: '1.6'
   }
 };

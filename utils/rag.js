@@ -3,7 +3,8 @@
  * 
  * Handles:
  * - Indexing messages for semantic search
- * - Retrieving relevant messages based on queries
+ * - Loading emergency knowledge base (300+ entries)
+ * - Retrieving relevant messages + KB entries based on queries
  * - Generating answers using LLM with context
  */
 
@@ -11,8 +12,10 @@ import { getAllMessages } from './storage';
 
 const DB_NAME = 'qr_messages_db';
 const EMBEDDINGS_STORE = 'message_embeddings';
+const KB_URL = '/data/emergency_knowledge_base.json';
 
 let dbInstance = null;
+let knowledgeBase = null;
 
 /**
  * Initialize embeddings object store if it doesn't exist
@@ -40,6 +43,61 @@ async function initEmbeddingsStore() {
     };
   });
 }
+
+/**
+ * Load emergency knowledge base from JSON file
+ * Contains 300+ life-saving entries for war/disaster scenarios
+ */
+export async function loadEmergencyKnowledgeBase() {
+  if (knowledgeBase) {
+    return knowledgeBase; // Already loaded, return cached
+  }
+
+  try {
+    console.log('📖 Loading emergency knowledge base...');
+    const response = await fetch(KB_URL);
+    
+    if (!response.ok) {
+      console.error(`Failed to load KB: ${response.status}`);
+      return [];
+    }
+
+    knowledgeBase = await response.json();
+    console.log(`✅ Loaded ${knowledgeBase.length} KB entries`);
+    return knowledgeBase;
+  } catch (error) {
+    console.error('Error loading knowledge base:', error);
+    return [];
+  }
+}
+
+/**
+ * Convert KB entry to searchable message format
+ */
+function formatKBEntryAsMessage(entry) {
+  const keywords = entry.keywords ? entry.keywords.join(' ') : '';
+  const searchText = `${entry.title} ${entry.summary} ${entry.answer || entry.details || ''} ${keywords}`;
+  
+  return {
+    id: `kb_${entry.id}`,
+    type: entry.category,
+    content: entry.summary || entry.answer || entry.title,
+    full_answer: entry.answer || entry.details || entry.summary,
+    location: entry.location || '',
+    author_role: 'Knowledge Base',
+    ai: {
+      label: entry.priority === 'CRITICAL' ? 'urgent' : 'verified',
+      summary: entry.summary
+    },
+    hop_count: 0,
+    source: 'KNOWLEDGE_BASE',
+    entry: entry,
+    searchText: searchText,
+    isKBEntry: true,
+    priority: entry.priority || 'MEDIUM'
+  };
+}
+
 
 /**
  * Simple TF-IDF based text tokenization
@@ -72,6 +130,23 @@ function calculateSimilarity(query, text) {
  * Extract key information from a message for RAG context
  */
 function formatMessageForContext(message) {
+  // Handle knowledge base entries differently
+  if (message.isKBEntry) {
+    return `
+[Knowledge Base Entry ID: ${message.entry.id}]
+Category: ${message.entry.category}
+Priority: ${message.entry.priority || 'MEDIUM'}
+Title: ${message.entry.title}
+Summary: ${message.entry.summary}
+${message.entry.answer ? `Answer: ${message.entry.answer}` : ''}
+${message.entry.details ? `Details: ${message.entry.details}` : ''}
+${message.entry.location ? `Location: ${message.entry.location}` : ''}
+Keywords: ${message.entry.keywords ? message.entry.keywords.join(', ') : 'None'}
+Reliability: ${message.entry.reliability || 'VERIFIED'}
+    `.trim();
+  }
+
+  // Handle scanned messages
   return `
 [Message ID: ${message.id.slice(0, 12)}]
 Type: ${message.type}
@@ -81,34 +156,53 @@ Hop Count: ${message.hop_count}
 Content: ${message.content}
 AI Classification: ${message.ai?.label || 'unverified'}
 ${message.ai?.summary ? `Summary: ${message.ai.summary}` : ''}
-`.trim();
+  `.trim();
 }
 
 /**
- * Retrieve relevant messages for a query
+ * Retrieve relevant messages for a query (from both scanned messages + knowledge base)
  * @param {string} query - User question
  * @param {number} topK - Number of results to return (default 5)
  * @returns {Promise<Array>} Relevant messages with similarity scores
  */
 export async function retrieveRelevantMessages(query, topK = 5) {
   try {
-    const messages = await getAllMessages();
+    // Fetch both scanned messages and knowledge base entries
+    const scannedMessages = await getAllMessages();
+    const kbEntries = await loadEmergencyKnowledgeBase();
 
-    // Calculate similarity scores for each message
-    const scoredMessages = messages.map((msg) => {
-      const messageText = `${msg.type} ${msg.content} ${msg.location} ${msg.ai?.summary || ''}`;
-      const score = calculateSimilarity(query, messageText);
+    // Convert KB entries to message format
+    const kbMessages = kbEntries.map(entry => formatKBEntryAsMessage(entry));
+
+    // Combine all sources
+    const allSources = [...scannedMessages, ...kbMessages];
+
+    console.log(`🔎 Searching ${scannedMessages.length} scanned messages + ${kbMessages.length} KB entries`);
+
+    // Calculate similarity scores for each item
+    const scoredResults = allSources.map((item) => {
+      // Use searchText if available (for KB), otherwise construct from content
+      const searchableText = item.searchText || `${item.type || ''} ${item.content || ''} ${item.location || ''} ${item.ai?.summary || ''}`;
+      const score = calculateSimilarity(query, searchableText);
 
       return {
-        ...msg,
+        ...item,
         relevanceScore: score
       };
     });
 
-    // Sort by relevance and return top-k
-    return scoredMessages
-      .sort((a, b) => b.relevanceScore - a.relevanceScore)
-      .filter(msg => msg.relevanceScore > 0)
+    // Sort by relevance (prioritize CRITICAL priority KB entries in ties)
+    const sortedResults = scoredResults.sort((a, b) => {
+      const scoreEqual = Math.abs(b.relevanceScore - a.relevanceScore) < 0.01;
+      if (scoreEqual && a.priority && b.priority) {
+        const priorityOrder = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+        return (priorityOrder[a.priority] || 3) - (priorityOrder[b.priority] || 3);
+      }
+      return b.relevanceScore - a.relevanceScore;
+    });
+
+    return sortedResults
+      .filter(item => item.relevanceScore > 0)
       .slice(0, topK);
   } catch (error) {
     console.error('Error retrieving relevant messages:', error);
@@ -171,53 +265,109 @@ export async function generateRAGAnswer(query, relevantMessages) {
 
 /**
  * Intelligent offline answer generator
- * Synthesizes information from retrieved messages without external APIs
+ * Synthesizes information from both scanned messages and knowledge base entries
  */
 function generateOfflineAnswer(query, relevantMessages) {
   if (relevantMessages.length === 0) {
     return `No information found in the database matching "${query}". Try scanning more QR codes to populate the database with relevant messages.`;
   }
 
-  // Parse query intent
-  const lowerQuery = query.toLowerCase();
-  const queryTokens = tokenize(query);
+  // Separate KB entries from scanned messages
+  const kbEntries = relevantMessages.filter(msg => msg.isKBEntry);
+  const scannedMessages = relevantMessages.filter(msg => !msg.isKBEntry);
 
-  // Extract key information from messages
+  // If we have critical KB entries, prioritize showing them
+  const criticalKBEntries = kbEntries.filter(msg => msg.priority === 'CRITICAL');
+  
+  if (criticalKBEntries.length > 0) {
+    let answer = `🚨 CRITICAL GUIDANCE FOUND:\n\n`;
+    
+    criticalKBEntries.slice(0, 3).forEach((entry, idx) => {
+      const actualEntry = entry.entry || entry;
+      answer += `${idx + 1}. ${actualEntry.title} [${actualEntry.category}]\n`;
+      
+      if (actualEntry.answer) {
+        answer += `\n${actualEntry.answer}\n`;
+      } else if (actualEntry.details) {
+        answer += `\n${actualEntry.details}\n`;
+      }
+      
+      if (actualEntry.contact) {
+        answer += `\nContact: ${actualEntry.contact}\n`;
+      }
+      
+      answer += `\n---\n\n`;
+    });
+    
+    return answer.trim();
+  }
+
+  // If we have any KB entries, show them first
+  if (kbEntries.length > 0) {
+    let answer = `📚 KNOWLEDGE BASE:\n\n`;
+    
+    kbEntries.slice(0, 3).forEach((entry, idx) => {
+      const actualEntry = entry.entry || entry;
+      answer += `${idx + 1}. ${actualEntry.title}\n`;
+      answer += `   Priority: ${actualEntry.priority || 'MEDIUM'}\n`;
+      answer += `   Category: ${actualEntry.category}\n\n`;
+      
+      if (actualEntry.answer) {
+        answer += `${actualEntry.answer}\n`;
+      } else if (actualEntry.summary) {
+        answer += `${actualEntry.summary}\n`;
+        if (actualEntry.details) {
+          answer += `\nDetails: ${actualEntry.details}\n`;
+        }
+      }
+      
+      if (actualEntry.location) {
+        answer += `\nLocation: ${actualEntry.location}\n`;
+      }
+      
+      if (actualEntry.contact) {
+        answer += `Contact: ${actualEntry.contact}\n`;
+      }
+      
+      answer += `\n---\n\n`;
+    });
+    
+    if (scannedMessages.length > 0) {
+      answer += `\n📱 SCANNED MESSAGES (${scannedMessages.length} found):\n`;
+      scannedMessages.slice(0, 2).forEach((msg, idx) => {
+        answer += `${idx + 1}. [${msg.type.toUpperCase()}] ${msg.content.substring(0, 100)}...\n`;
+        answer += `   From: ${msg.author_role || 'Unknown'} at ${msg.location || 'Unknown location'}\n\n`;
+      });
+    }
+    
+    return answer.trim();
+  }
+
+  // Fallback: Show scanned messages only
+  const lowerQuery = query.toLowerCase();
   const messagesByType = {};
   const urgentMessages = [];
   const locationSet = new Set();
-  const allContent = [];
-  let totalHops = 0;
 
-  relevantMessages.forEach((msg) => {
-    // Group by type
+  scannedMessages.forEach((msg) => {
     if (!messagesByType[msg.type]) {
       messagesByType[msg.type] = [];
     }
     messagesByType[msg.type].push(msg);
 
-    // Track urgent messages
     if (msg.ai?.label === 'urgent') {
       urgentMessages.push(msg);
     }
 
-    // Collect locations
     if (msg.location) {
       locationSet.add(msg.location);
     }
-
-    // Collect content
-    allContent.push(msg.content);
-    totalHops += msg.hop_count || 0;
   });
 
   const locations = Array.from(locationSet);
-  const avgHops = relevantMessages.length > 0 ? (totalHops / relevantMessages.length).toFixed(1) : 0;
-
-  // Build answer based on query intent
   let answer = '';
 
-  // Detect query type and generate appropriate answer
+  // Detect query type and generate appropriate answer for scanned messages
   if (containsKeywords(lowerQuery, ['urgent', 'emergency', 'priority', 'critical', 'alert'])) {
     if (urgentMessages.length > 0) {
       answer = `Found ${urgentMessages.length} urgent message(s):\n\n`;
@@ -252,78 +402,17 @@ function generateOfflineAnswer(query, relevantMessages) {
     } else {
       answer = 'No safety-related messages found.';
     }
-  } else if (containsKeywords(lowerQuery, ['missing', 'lost', 'find', 'search', 'person'])) {
-    if (messagesByType['missing']) {
-      answer = `Found ${messagesByType['missing'].length} missing person report(s):\n\n`;
-      messagesByType['missing'].slice(0, 3).forEach((msg, idx) => {
-        answer += `${idx + 1}. ${msg.content.substring(0, 80)}...`;
-        answer += msg.location ? ` (Last seen: ${msg.location})` : '';
-        answer += `\n`;
-      });
-    } else {
-      answer = 'No missing person reports in the database.';
-    }
-  } else if (containsKeywords(lowerQuery, ['aid', 'help', 'support', 'resource', 'need', 'request'])) {
-    if (messagesByType['aid']) {
-      answer = `Found ${messagesByType['aid'].length} aid request(s):\n\n`;
-      messagesByType['aid'].slice(0, 3).forEach((msg, idx) => {
-        answer += `${idx + 1}. ${msg.content.substring(0, 80)}...`;
-        answer += msg.location ? ` (Location: ${msg.location})` : '';
-        answer += `\n`;
-      });
-    } else {
-      answer = 'No aid requests found in the database.';
-    }
-  } else if (containsKeywords(lowerQuery, ['rumor', 'report', 'information', 'news'])) {
-    if (messagesByType['rumor']) {
-      answer = `Found ${messagesByType['rumor'].length} information report(s):\n\n`;
-      messagesByType['rumor'].slice(0, 3).forEach((msg, idx) => {
-        answer += `${idx + 1}. ${msg.content.substring(0, 80)}...`;
-        answer += `\n`;
-      });
-    } else {
-      answer = 'No information reports in the database.';
-    }
-  } else if (containsKeywords(lowerQuery, ['location', 'where', 'area', 'region', 'zone'])) {
-    if (locations.length > 0) {
-      answer = `Messages from these locations:\n\n`;
-      locations.forEach((loc, idx) => {
-        const count = relevantMessages.filter(m => m.location === loc).length;
-        answer += `${idx + 1}. ${loc} (${count} message(s))\n`;
-      });
-    } else {
-      answer = 'No location information available in the database.';
-    }
-  } else if (containsKeywords(lowerQuery, ['type', 'category', 'kind', 'message type'])) {
-    const types = Object.keys(messagesByType);
-    answer = `Message types in database:\n\n`;
-    types.forEach((type, idx) => {
-      answer += `${idx + 1}. ${type.toUpperCase()} - ${messagesByType[type].length} message(s)\n`;
-    });
-    answer += `\nTotal: ${relevantMessages.length} messages`;
-  } else if (containsKeywords(lowerQuery, ['count', 'total', 'many', 'how many'])) {
-    answer = `Database statistics:\n\n`;
-    answer += `• Total messages: ${relevantMessages.length}\n`;
-    answer += `• Urgent messages: ${urgentMessages.length}\n`;
-    answer += `• Unique locations: ${locations.length}\n`;
-    answer += `• Average hops: ${avgHops}\n`;
-    Object.entries(messagesByType).forEach(([type, msgs]) => {
-      answer += `• ${type.toUpperCase()}: ${msgs.length}\n`;
-    });
   } else {
-    // Generic answer for unmatched queries
-    answer = `Found ${relevantMessages.length} relevant message(s):\n\n`;
-
-    // Show top messages
-    relevantMessages.slice(0, 3).forEach((msg, idx) => {
+    // Generic answer
+    answer = `Found ${scannedMessages.length} relevant message(s):\n\n`;
+    scannedMessages.slice(0, 3).forEach((msg, idx) => {
       answer += `${idx + 1}. [${msg.type.toUpperCase()}] ${msg.content.substring(0, 80)}...\n`;
       answer += `   Location: ${msg.location || 'Not specified'}\n`;
-      answer += `   Author: ${msg.author_role || 'Unknown'}\n`;
       answer += `   Relevance: ${(msg.relevanceScore * 100).toFixed(0)}%\n\n`;
     });
 
-    if (relevantMessages.length > 3) {
-      answer += `\n(+ ${relevantMessages.length - 3} more messages - click sources to see all)`;
+    if (scannedMessages.length > 3) {
+      answer += `(+ ${scannedMessages.length - 3} more messages)`;
     }
   }
 

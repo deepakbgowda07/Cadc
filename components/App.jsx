@@ -269,10 +269,10 @@ export default function App() {
       {/* FOOTER */}
       <footer style={styles.footer}>
         <p>
-          🔒 Fully offline | 📱 Device-to-device | 🔄 QR-based propagation | 🤖 RAG-powered Q&A
+          🔒 Fully offline | 📱 Device-to-device | 🔄 QR-based propagation
         </p>
         <p style={{ fontSize: '11px', color: '#999' }}>
-          This system uses IndexedDB for persistence, RAG for intelligent search, and html5-qrcode +
+          This system uses localStorage for local persistence and html5-qrcode +
           qrcode libraries for QR operations.
         </p>
       </footer>

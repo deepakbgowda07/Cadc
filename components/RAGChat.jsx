@@ -9,12 +9,44 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { executeRAGQuery, getRAGStats } from '../utils/rag';
 
+const SUGGESTED_QUESTIONS = [
+  // Life-Critical
+  "Someone is bleeding heavily. What do I do?",
+  "Person can't breathe / chest pain. Help?",
+  "Gunfire nearby. What do I do?",
+  
+  // Medical
+  "How to treat burns?",
+  "Fracture / broken bone. What now?",
+  
+  // Safety & Locations
+  "Where can I go to be safe?",
+  "Is Eastern Market safe?",
+  "Which areas should I avoid?",
+  
+  // Resources
+  "Where can I get drinking water?",
+  "When is food distributed?",
+  "Where is baby formula?",
+  
+  // Navigation
+  "How to get to the safe zone?",
+  "What's the safest evacuation route?",
+  
+  // Family & Missing
+  "My family is separated. What do I do?",
+  
+  // Information
+  "What's the current situation?",
+  "How many shelter beds are available?"
+];
+
 export default function RAGChat() {
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
       type: 'system',
-      text: '🔒 Fully Offline RAG Q&A System\n\nAsk me anything about the messages in your database. No internet required!\n\nExamples: "What medical emergencies?" "Show urgent messages" "Messages by location?"'
+      text: '🔒 Fully Offline RAG Q&A System\n\nNo internet required. Complete local processing.\n\nBuilt-in emergency knowledge base with 116+ life-saving answers. Click suggested questions below or ask anything!'
     }
   ]);
   const [query, setQuery] = useState('');
@@ -83,6 +115,12 @@ export default function RAGChat() {
     }
   }
 
+  function handleSuggestedQuestion(question) {
+    setQuery(question);
+    // Focus input for user to review before submitting
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -137,6 +175,33 @@ export default function RAGChat() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* SUGGESTED QUESTIONS */}
+      {messages.length <= 1 && !loading && (
+        <div style={styles.suggestedSection}>
+          <div style={styles.suggestedLabel}>Quick Examples — Click any question:</div>
+          <div style={styles.suggestedGrid}>
+            {SUGGESTED_QUESTIONS.map((question, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSuggestedQuestion(question)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(100, 93, 234, 0.15)';
+                  e.currentTarget.style.borderColor = '#645dea';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(100, 93, 234, 0.08)';
+                  e.currentTarget.style.borderColor = '#2e3b7d';
+                }}
+                style={styles.suggestedBtn}
+                title={question}
+              >
+                {question.length > 50 ? question.substring(0, 47) + '...' : question}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* INPUT FORM */}
       <form onSubmit={handleAsk} style={styles.form}>
         <input
@@ -144,7 +209,7 @@ export default function RAGChat() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Ask about the messages..."
+          placeholder="Ask questions: 'Where is food?', 'Is it safe?', 'How to treat burns?'..."
           style={styles.input}
           disabled={loading}
         />
@@ -483,5 +548,41 @@ const styles = {
     cursor: 'pointer',
     borderRadius: '2px',
     transition: 'all 0.15s'
+  },
+
+  /* SUGGESTED QUESTIONS */
+  suggestedSection: {
+    padding: '12px 16px',
+    backgroundColor: '#161819',
+    borderTop: '1px solid #1e2124',
+    maxHeight: '200px',
+    overflowY: 'auto'
+  },
+  suggestedLabel: {
+    fontFamily: "'Share Tech Mono', monospace",
+    fontSize: '9px',
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    color: '#3d4248',
+    marginBottom: '10px'
+  },
+  suggestedGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+    gap: '8px'
+  },
+  suggestedBtn: {
+    padding: '8px 10px',
+    fontFamily: "'Share Tech Mono', monospace",
+    fontSize: '10px',
+    backgroundColor: 'rgba(100, 93, 234, 0.08)',
+    border: '1px solid #2e3b7d',
+    color: '#645dea',
+    cursor: 'pointer',
+    borderRadius: '2px',
+    transition: 'all 0.2s',
+    textAlign: 'left',
+    lineHeight: '1.4',
+    outline: 'none'
   }
 };
